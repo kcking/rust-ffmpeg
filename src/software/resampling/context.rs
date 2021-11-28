@@ -76,8 +76,7 @@ impl Context {
 						},
 					}),
 				}
-			}
-			else {
+			} else {
 				Err(Error::InvalidData)
 			}
 		}
@@ -96,7 +95,11 @@ impl Context {
 	/// Get the remaining delay.
 	pub fn delay(&self) -> Option<Delay> {
 		unsafe {
-			match swr_get_delay(self.as_ptr() as *mut _, 1) {
+			match swr_get_delay(
+				self.as_ptr() as *mut _,
+				//	prevent rounding down to 0
+				(self.input.rate * self.output.rate) as i64,
+			) {
 				0 => None,
 				_ => Some(Delay::from(self)),
 			}
