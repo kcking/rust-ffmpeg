@@ -98,10 +98,15 @@ impl Context {
 			match swr_get_delay(
 				self.as_ptr() as *mut _,
 				//	prevent rounding down to 0
-				(self.input.rate * self.output.rate) as i64,
+				// lcm(self.input.rate, self.output.rate) as i64,
+				self.output.rate as i64,
 			) {
 				0 => None,
-				_ => Some(Delay::from(self)),
+				_ => {
+					let delay = Delay::from(self);
+					dbg!(delay);
+					Some(delay)
+				}
 			}
 		}
 	}
@@ -116,7 +121,6 @@ impl Context {
 		output: &mut frame::Audio,
 	) -> Result<Option<Delay>, Error> {
 		output.set_rate(self.output.rate);
-
 		unsafe {
 			if output.is_empty() {
 				output.alloc(
@@ -141,11 +145,13 @@ impl Context {
 		output.set_rate(self.output.rate);
 
 		unsafe {
-			match swr_convert_frame(self.as_mut_ptr(), output.as_mut_ptr(), ptr::null()) {
+			let ret = match swr_convert_frame(self.as_mut_ptr(), output.as_mut_ptr(), ptr::null()) {
 				0 => Ok(self.delay()),
 
 				e => Err(Error::from(e)),
-			}
+			};
+			dbg!(output.samples());
+			ret
 		}
 	}
 }
@@ -156,4 +162,18 @@ impl Drop for Context {
 			swr_free(&mut self.as_mut_ptr());
 		}
 	}
+}
+
+fn lcm(a: u32, b: u32) -> u32 {
+	a * b / gcd(a, b)
+}
+
+fn gcd(mut a: u32, mut b: u32) -> u32 {
+	let mut t: u32;
+	while b != 0 {
+		t = b;
+		b = a % b;
+		a = t;
+	}
+	a
 }
